@@ -2,6 +2,15 @@
 header('Content-Type: text/html; charset=UTF-8');
 session_start();
 
+function generateRandomString($length = 10) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, strlen($characters) - 1];
+    }
+    return $randomString;
+}
+
 function setValue($field) {
     return isset($_COOKIE[$field]) ? htmlspecialchars($_COOKIE[$field]) : '';
 }
@@ -14,22 +23,24 @@ function setSelected($field, $value) {
     return (isset($_COOKIE[$field]) && in_array($value, (array)$_COOKIE[$field])) ? 'selected' : '';
 }
 
-function generateRandomString($length = 10) {
-    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    $randomString = '';
-    for ($i = 0; $i < $length; $i++) {
-        $randomString .= $characters[rand(0, strlen($characters) - 1)];
+// Handle login
+if (isset($_POST['login_action'])) {
+    $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+    ]);
+    
+    $stmt = $db->prepare("SELECT id, password_hash FROM applications WHERE login = ?");
+    $stmt->execute([$_POST['login']]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if ($user && password_verify($_POST['password'], $user['password_hash'])) {
+        $_SESSION['user_id'] = $user['id'];
+        header('Location: index.php');
+        exit();
+    } else {
+        $messages[] = '<div class="error">Неверный логин или пароль</div>';
     }
-    return $randomString;
 }
-
-function hashPassword($password) {
-    return password_hash($password, PASSWORD_DEFAULT);
-}
-
-// Check if user is logged in
-$logged_in = isset($_SESSION['user_id']);
-$is_admin = isset($_SESSION['is_admin']) && $_SESSION['is_admin'];
 
 // Handle logout
 if (isset($_GET['logout'])) {
@@ -38,41 +49,26 @@ if (isset($_GET['logout'])) {
     exit();
 }
 
-// Database connection
-try {
-    $db = new PDO('mysql:host=localhost;dbname=u68647', 'u68647', '8086817', [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
-    ]);
-} catch (PDOException $e) {
-    die('Ошибка подключения к базе данных: ' . $e->getMessage());
+// Show login form if not authenticated
+if (!isset($_SESSION['user_id']) && !isset($_POST['login_action'])) {
+    include('login_form.php');
+    exit();
 }
 
-// Handle login form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['login'])) {
-    $login = $_POST['login'] ?? '';
-    $password = $_POST['password'] ?? '';
-    
-    $stmt = $db->prepare("SELECT * FROM users WHERE login = ?");
-    $stmt->execute([$login]);
-    $user = $stmt->fetch();
-    
-    if ($user && password_verify($password, $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        $_SESSION['login'] = $user['login'];
-        $_SESSION['is_admin'] = $user['is_admin'];
-        header('Location: index.php');
-        exit();
-    } else {
-        $login_error = 'Неверный логин или пароль';
-    }
-}
-
+// Handle form submission for editing data
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $messages = array();
     if (!empty($_COOKIE['save'])) {
         setcookie('save', '', 100000);
         $messages[] = 'Данные сохранены!';
+    }
+    
+    if (!empty($_COOKIE['credentials'])) {
+        $credentials = json_decode($_COOKIE['credentials'], true);
+        $messages[] = '<div class="success">Ваши учетные данные для входа:<br>Логин: ' . 
+                      htmlspecialchars($credentials['login']) . '<br>Пароль: ' . 
+                      htmlspecialchars($credentials['password']) . '</div>';
+        setcookie('credentials', '', 100000);
     }
     
     $errors = array();
@@ -118,11 +114,41 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $messages[] = '<div class="error">Вы должны принять условия.</div>';
     }
     
+    // Load existing data if editing
+    if (isset($_SESSION['user_id'])) {
+        try {
+            $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+            
+            $stmt = $db->prepare("SELECT * FROM applications WHERE id = ?");
+            $stmt->execute([$_SESSION['user_id']]);
+            $app = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($app) {
+                setcookie('fio_value', $app['fio'], time() + 365 * 24 * 60 * 60);
+                setcookie('phone_value', $app['phone'], time() + 365 * 24 * 60 * 60);
+                setcookie('email_value', $app['email'], time() + 365 * 24 * 60 * 60);
+                setcookie('birth_date_value', $app['birth_date'], time() + 365 * 24 * 60 * 60);
+                setcookie('gender_value', $app['gender'], time() + 365 * 24 * 60 * 60);
+                setcookie('bio_value', $app['bio'], time() + 365 * 24 * 60 * 60);
+                setcookie('agreement_value', $app['agreement'], time() + 365 * 24 * 60 * 60);
+                
+                $stmt = $db->prepare("SELECT lang_id FROM application_languages WHERE app_id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $langs = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                setcookie('languages_value', serialize($langs), time() + 365 * 24 * 60 * 60);
+            }
+        } catch (PDOException $e) {
+            // Handle error
+        }
+    }
+    
     include('form.php');
     exit();
 }
 
-// Handle main form submission
+// Handle form submission
 $errors = FALSE;
 if (empty($_POST['fio']) || !preg_match('/^[A-Za-zА-Яа-яЁё\s]+$/u', $_POST['fio'])) {
     setcookie('fio_error', '1', time() + 24 * 60 * 60);
@@ -186,31 +212,48 @@ if ($errors) {
 }
 
 try {
-    // Insert application data
-    $stmt = $db->prepare("INSERT INTO applications (fio, phone, email, birth_date, gender, bio, agreement) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([
-        $_POST['fio'], $_POST['phone'], $_POST['email'], $_POST['birth_date'], $_POST['gender'], $_POST['bio'], 1
+    $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
     ]);
-    $app_id = $db->lastInsertId();
     
-    // Insert languages
-    $stmt = $db->prepare("INSERT INTO application_languages (app_id, lang_id) VALUES (?, ?)");
-    foreach ($_POST['languages'] as $lang) {
-        $stmt->execute([$app_id, (int)$lang]);
-    }
-    
-    // Generate and save credentials for the first submission
-    if (!isset($_COOKIE['credentials_generated'])) {
+    if (isset($_SESSION['user_id'])) {
+        // Update existing application
+        $stmt = $db->prepare("UPDATE applications SET fio = ?, phone = ?, email = ?, birth_date = ?, gender = ?, bio = ?, agreement = ? WHERE id = ?");
+        $stmt->execute([
+            $_POST['fio'], $_POST['phone'], $_POST['email'], $_POST['birth_date'], $_POST['gender'], $_POST['bio'], 1, $_SESSION['user_id']
+        ]);
+        
+        // Delete old languages
+        $stmt = $db->prepare("DELETE FROM application_languages WHERE app_id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        
+        // Insert new languages
+        $stmt = $db->prepare("INSERT INTO application_languages (app_id, lang_id) VALUES (?, ?)");
+        foreach ($_POST['languages'] as $lang) {
+            $stmt->execute([$_SESSION['user_id'], (int)$lang]);
+        }
+    } else {
+        // Create new application with auto-generated credentials
         $login = generateRandomString(8);
         $password = generateRandomString(10);
-        $password_hash = hashPassword($password);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
         
-        $stmt = $db->prepare("INSERT INTO users (login, password_hash, app_id) VALUES (?, ?, ?)");
-        $stmt->execute([$login, $password_hash, $app_id]);
+        $stmt = $db->prepare("INSERT INTO applications (fio, phone, email, birth_date, gender, bio, agreement, login, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $_POST['fio'], $_POST['phone'], $_POST['email'], $_POST['birth_date'], $_POST['gender'], $_POST['bio'], 1, $login, $password_hash
+        ]);
+        $app_id = $db->lastInsertId();
         
-        setcookie('credentials_generated', '1', time() + 365 * 24 * 60 * 60);
-        setcookie('generated_login', $login, time() + 24 * 60 * 60);
-        setcookie('generated_password', $password, time() + 24 * 60 * 60);
+        $stmt = $db->prepare("INSERT INTO application_languages (app_id, lang_id) VALUES (?, ?)");
+        foreach ($_POST['languages'] as $lang) {
+            $stmt->execute([$app_id, (int)$lang]);
+        }
+        
+        // Store credentials to show to user
+        setcookie('credentials', json_encode(['login' => $login, 'password' => $password]), time() + 24 * 60 * 60);
+        
+        // Auto-login the user
+        $_SESSION['user_id'] = $app_id;
     }
 } catch (PDOException $e) {
     echo 'Ошибка: ' . $e->getMessage();
