@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 $_SESSION['bio'] = $user['bio'];
                 
                 // Получаем языки пользователя
-                $stmt = $db->prepare("SELECT lang_id FROM application_languages WHERE app_id = ?");
+                $stmt = $db->prepare("SELECT language_id FROM application_languages WHERE application_id = ?");
                 $stmt->execute([$user['id']]);
                 $languages = $stmt->fetchAll(PDO::FETCH_COLUMN);
                 $_SESSION['languages'] = $languages;
@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
     
     try {
-        $db = new PDO('mysql:host=localhost;dbname=u68647', 'u68647', '8086817', [
+        $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
         ]);
         
@@ -226,11 +226,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             ]);
             
             // Удаляем старые языки
-            $stmt = $db->prepare("DELETE FROM application_languages WHERE app_id = ?");
+            $stmt = $db->prepare("DELETE FROM application_languages WHERE application_id = ?");
             $stmt->execute([$_SESSION['id']]);
             
             // Добавляем новые языки
-            $stmt = $db->prepare("INSERT INTO application_languages (app_id, lang_id) VALUES (?, ?)");
+            $stmt = $db->prepare("INSERT INTO application_languages (application_id, language_id) VALUES (?, ?)");
             foreach ($_POST['languages'] as $lang) {
                 $stmt->execute([$_SESSION['id'], (int)$lang]);
             }
@@ -247,11 +247,11 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $stmt->execute([
                 $_POST['fio'], $_POST['phone'], $_POST['email'], $_POST['birth_date'], $_POST['gender'], $_POST['bio'], 1, $login, $password_hash
             ]);
-            $app_id = $db->lastInsertId();
+            $application_id = $db->lastInsertId();
             
-            $stmt = $db->prepare("INSERT INTO application_languages (app_id, lang_id) VALUES (?, ?)");
+            $stmt = $db->prepare("INSERT INTO application_languages (application_id, language_id) VALUES (?, ?)");
             foreach ($_POST['languages'] as $lang) {
-                $stmt->execute([$app_id, (int)$lang]);
+                $stmt->execute([$application_id, (int)$lang]);
             }
             
             setcookie('register_success', '1');
