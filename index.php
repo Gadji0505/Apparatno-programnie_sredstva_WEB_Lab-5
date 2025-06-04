@@ -40,7 +40,7 @@ if (isset($_GET['logout'])) {
 
 // Database connection
 try {
-    $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
+    $db = new PDO('mysql:host=localhost;dbname=u68647', 'u68647', '8086817', [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
