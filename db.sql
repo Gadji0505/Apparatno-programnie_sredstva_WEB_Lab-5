@@ -7,10 +7,7 @@ CREATE TABLE applications (
     gender ENUM('male', 'female') NOT NULL,
     bio TEXT NOT NULL,
     agreement BOOLEAN NOT NULL DEFAULT 0,
-    login VARCHAR(50) NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    PRIMARY KEY (id),
-    UNIQUE KEY (login)
+    PRIMARY KEY (id)
 );
 
 CREATE TABLE languages (
@@ -27,3 +24,6 @@ CREATE TABLE application_languages (
 );
 
 INSERT INTO languages (name) VALUES ('Pascal'), ('C'), ('C++'), ('JavaScript'), ('PHP'), ('Python'), ('Java'), ('Haskel'), ('Clojure'), ('Prolog'), ('Scala'), ('Go');
+
+ALTER TABLE applications ADD COLUMN login VARCHAR(50) UNIQUE;
+ALTER TABLE applications ADD COLUMN password_hash VARCHAR(255);
