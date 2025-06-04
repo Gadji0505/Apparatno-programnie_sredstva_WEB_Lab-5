@@ -6,7 +6,7 @@ function generateRandomString($length = 10) {
     $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     $randomString = '';
     for ($i = 0; $i < $length; $i++) {
-        $randomString .= $characters[rand(0, strlen($characters) - 1];
+        $randomString .= $characters[rand(0, strlen($characters) - 1)];
     }
     return $randomString;
 }
@@ -20,25 +20,29 @@ function setChecked($field, $value) {
 }
 
 function setSelected($field, $value) {
-    return (isset($_COOKIE[$field]) && in_array($value, (array)$_COOKIE[$field])) ? 'selected' : '';
+    return (isset($_COOKIE[$field]) && in_array($value, (array)json_decode($_COOKIE[$field], true)) ? 'selected' : '';
 }
 
 // Handle login
 if (isset($_POST['login_action'])) {
-    $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-    ]);
-    
-    $stmt = $db->prepare("SELECT id, password_hash FROM applications WHERE login = ?");
-    $stmt->execute([$_POST['login']]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if ($user && password_verify($_POST['password'], $user['password_hash'])) {
-        $_SESSION['user_id'] = $user['id'];
-        header('Location: index.php');
-        exit();
-    } else {
-        $messages[] = '<div class="error">Неверный логин или пароль</div>';
+    try {
+        $db = new PDO('mysql:host=localhost;dbname=u68653', 'u68653', '7251537', [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        ]);
+        
+        $stmt = $db->prepare("SELECT id, password_hash FROM applications WHERE login = ?");
+        $stmt->execute([$_POST['login']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user && password_verify($_POST['password'], $user['password_hash'])) {
+            $_SESSION['user_id'] = $user['id'];
+            header('Location: index.php');
+            exit();
+        } else {
+            $messages[] = '<div class="error">Неверный логин или пароль</div>';
+        }
+    } catch (PDOException $e) {
+        $messages[] = '<div class="error">Ошибка базы данных</div>';
     }
 }
 
@@ -59,7 +63,7 @@ if (!isset($_SESSION['user_id']) && !isset($_POST['login_action'])) {
 if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $messages = array();
     if (!empty($_COOKIE['save'])) {
-        setcookie('save', '', 100000);
+        setcookie('save', '', time() - 3600);
         $messages[] = 'Данные сохранены!';
     }
     
@@ -68,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
         $messages[] = '<div class="success">Ваши учетные данные для входа:<br>Логин: ' . 
                       htmlspecialchars($credentials['login']) . '<br>Пароль: ' . 
                       htmlspecialchars($credentials['password']) . '</div>';
-        setcookie('credentials', '', 100000);
+        setcookie('credentials', '', time() - 3600);
     }
     
     $errors = array();
@@ -82,35 +86,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
     $errors['agreement'] = !empty($_COOKIE['agreement_error']);
     
     if ($errors['fio']) {
-        setcookie('fio_error', '', 100000);
+        setcookie('fio_error', '', time() - 3600);
         $messages[] = '<div class="error">Некорректное ФИО. Допустимы только буквы и пробелы.</div>';
     }
     if ($errors['phone']) {
-        setcookie('phone_error', '', 100000);
+        setcookie('phone_error', '', time() - 3600);
         $messages[] = '<div class="error">Некорректный номер телефона. Допустимый формат: +71234567890 или 71234567890 (11-15 цифр).</div>';
     }
     if ($errors['email']) {
-        setcookie('email_error', '', 100000);
+        setcookie('email_error', '', time() - 3600);
         $messages[] = '<div class="error">Некорректный email. Введите email в правильном формате.</div>';
     }
     if ($errors['birth_date']) {
-        setcookie('birth_date_error', '', 100000);
+        setcookie('birth_date_error', '', time() - 3600);
         $messages[] = '<div class="error">Укажите дату рождения.</div>';
     }
     if ($errors['gender']) {
-        setcookie('gender_error', '', 100000);
+        setcookie('gender_error', '', time() - 3600);
         $messages[] = '<div class="error">Некорректный выбор пола.</div>';
     }
     if ($errors['languages']) {
-        setcookie('languages_error', '', 100000);
+        setcookie('languages_error', '', time() - 3600);
         $messages[] = '<div class="error">Выберите хотя бы один язык программирования.</div>';
     }
     if ($errors['bio']) {
-        setcookie('bio_error', '', 100000);
+        setcookie('bio_error', '', time() - 3600);
         $messages[] = '<div class="error">Заполните биографию.</div>';
     }
     if ($errors['agreement']) {
-        setcookie('agreement_error', '', 100000);
+        setcookie('agreement_error', '', time() - 3600);
         $messages[] = '<div class="error">Вы должны принять условия.</div>';
     }
     
@@ -137,10 +141,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'GET') {
                 $stmt = $db->prepare("SELECT lang_id FROM application_languages WHERE app_id = ?");
                 $stmt->execute([$_SESSION['user_id']]);
                 $langs = $stmt->fetchAll(PDO::FETCH_COLUMN);
-                setcookie('languages_value', serialize($langs), time() + 365 * 24 * 60 * 60);
+                setcookie('languages_value', json_encode($langs), time() + 365 * 24 * 60 * 60);
             }
         } catch (PDOException $e) {
-            // Handle error
+            $messages[] = '<div class="error">Ошибка загрузки данных</div>';
         }
     }
     
@@ -189,7 +193,7 @@ if (empty($_POST['languages'])) {
     setcookie('languages_error', '1', time() + 24 * 60 * 60);
     $errors = TRUE;
 } else {
-    setcookie('languages_value', serialize($_POST['languages']), time() + 365 * 24 * 60 * 60);
+    setcookie('languages_value', json_encode($_POST['languages']), time() + 365 * 24 * 60 * 60);
 }
 
 if (empty($_POST['bio'])) {
@@ -256,9 +260,10 @@ try {
         $_SESSION['user_id'] = $app_id;
     }
 } catch (PDOException $e) {
-    echo 'Ошибка: ' . $e->getMessage();
+    $messages[] = '<div class="error">Ошибка сохранения данных: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    include('form.php');
     exit();
 }
 
-setcookie('save', '1');
+setcookie('save', '1', time() + 24 * 60 * 60);
 header('Location: index.php');
