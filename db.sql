@@ -1,4 +1,5 @@
-CREATE TABLE applications (
+-- Создание таблицы applications
+CREATE TABLE IF NOT EXISTS applications (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     fio VARCHAR(150) NOT NULL,
     phone VARCHAR(15) NOT NULL,
@@ -8,22 +9,26 @@ CREATE TABLE applications (
     bio TEXT NOT NULL,
     agreement BOOLEAN NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE languages (
+-- Создание таблицы languages
+CREATE TABLE IF NOT EXISTS languages (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL,
     PRIMARY KEY (id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE application_languages (
+-- Создание таблицы application_languages
+CREATE TABLE IF NOT EXISTS application_languages (
     app_id INT UNSIGNED NOT NULL,
     lang_id INT UNSIGNED NOT NULL,
     FOREIGN KEY (app_id) REFERENCES applications(id) ON DELETE CASCADE,
-    FOREIGN KEY (lang_id) REFERENCES languages(id) ON DELETE CASCADE
-);
+    FOREIGN KEY (lang_id) REFERENCES languages(id) ON DELETE CASCADE,
+    PRIMARY KEY (app_id, lang_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE TABLE users (
+-- Создание таблицы users
+CREATE TABLE IF NOT EXISTS users (
     id INT UNSIGNED NOT NULL AUTO_INCREMENT,
     login VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
@@ -32,6 +37,10 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     FOREIGN KEY (app_id) REFERENCES applications(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-INSERT INTO languages (name) VALUES ('Pascal'), ('C'), ('C++'), ('JavaScript'), ('PHP'), ('Python'), ('Java'), ('Haskel'), ('Clojure'), ('Prolog'), ('Scala'), ('Go');
+-- Заполнение таблицы languages
+INSERT INTO languages (name) VALUES 
+('Pascal'), ('C'), ('C++'), ('JavaScript'), ('PHP'), 
+('Python'), ('Java'), ('Haskell'), ('Clojure'), 
+('Prolog'), ('Scala'), ('Go');
